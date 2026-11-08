@@ -77,5 +77,8 @@ async function main() {
   console.log('OK ' + d + ' Lv' + row.level + ' exp=' + expT.toFixed(3) + 'T');
 }
 
-// A failed fetch must not break the repo: keep yesterday's snapshot.
-main().catch(e => { console.error('SKIP (kept previous snapshot): ' + e.message); process.exit(0); });
+// A failed fetch must NOT look like a green run. Exit non-zero so GitHub
+// reports the failed run (and sends its failure notification), keep yesterday's
+// snapshot untouched, and let the app's freshness badge warn on the phone once
+// the data is >30h old. No silent success, no fake timestamp.
+main().catch(e => { console.error('FAILED (kept previous snapshot): ' + e.message); process.exit(1); });
