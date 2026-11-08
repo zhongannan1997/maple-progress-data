@@ -34,3 +34,6 @@ jobs:
             git commit -m "daily snapshot $(date -u +%F)"
             git push
           fi
+      - name: Purge jsDelivr cache
+        if: always()
+        run: curl -fsS "https://purge.jsdelivr.net/gh/zhongannan1997/maple-progress-data@main/snapshot.json" || true
