@@ -10,6 +10,28 @@ const REFERER = 'https://www.nexon.com/maplestory/rankings/north-america/overall
 const FILE = 'snapshot.json';
 const KEY = NAME.toLowerCase();
 
+// The ranking response carries characterImgURL: a 96x96 PNG of the character's
+// CURRENT hair / cash outfit / weapon. Embed it as a data URI so the app never
+// has to reach msavatar*.nexon.net (which is unreliable on some CN networks).
+async function fetchAvatar(url, fallback) {
+  if (!url || !/^https:\/\/msavatar\d*\.nexon\.net\//.test(url)) return fallback;
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'image/png,image/*' },
+      signal: AbortSignal.timeout(12000),
+      cache: 'no-store'
+    });
+    if (!r.ok) return fallback;
+    const b = Buffer.from(await r.arrayBuffer());
+    if (b.length < 100 || b.length > 200000) return fallback;
+    if (b[0] !== 0x89 || b.toString('ascii', 1, 4) !== 'PNG') return fallback;
+    return 'data:image/png;base64,' + b.toString('base64');
+  } catch (e) {
+    console.warn('avatar fetch skipped: ' + e.message);
+    return fallback;
+  }
+}
+
 async function main() {
   const old = JSON.parse(readFileSync(FILE, 'utf8'));
   const res = await fetch(API, {
@@ -45,7 +67,8 @@ async function main() {
       legionLevel: +row.legionLevel || prev.legionLevel || 0,
       rank: +row.rank || 0,
       region: 'NA',
-      avatar: row.characterImgURL || prev.avatar || '',
+      avatar: await fetchAvatar(row.characterImgURL, prev.avatar || ''),
+      avatarSource: row.characterImgURL || '',
       d: d
     }],
     history: hist
