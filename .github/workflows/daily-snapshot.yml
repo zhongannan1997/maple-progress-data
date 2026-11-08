@@ -1,0 +1,36 @@
+name: Daily EXP snapshot
+
+on:
+  schedule:
+    # 00:10 UTC = 08:10 Beijing, 5 min after the Cloudflare Worker cron
+    - cron: '10 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-snapshot
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fetch official ranking and write snapshot.json
+        run: node scripts/update-snapshot.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "maple-progress-bot"
+          git config user.email "maple-progress-bot@users.noreply.github.com"
+          git add snapshot.json
+          if git diff --staged --quiet; then
+            echo "no change"
+          else
+            git commit -m "daily snapshot $(date -u +%F)"
+            git push
+          fi
